@@ -1,35 +1,67 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Lokasi</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body{margin:0;font-family:Inter,Arial,sans-serif}
+    #map{height:100vh}
+    .topbar{position:absolute;left:12px;top:12px;z-index:1000;background:white;padding:8px;border-radius:8px;box-shadow:0 6px 20px rgba(10,10,20,0.12)}
+    .btn{padding:6px 10px;border-radius:8px;border:none;background:#1a73e8;color:white;cursor:pointer}
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-  <nav class="bg-white shadow-md p-4 rounded-xl flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-semibold text-gray-800">Dashboard</h1>
-    <a href="index.html" class="text-blue-600 hover:underline">Home</a>
-  </nav>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div class="bg-white p-6 rounded-2xl shadow-xl">
-      <h2 class="text-xl font-semibold mb-3 text-gray-700">Statistics</h2>
-      <p class="text-gray-600">Overview of your application data.</p>
-      <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">View</button>
-    </div>
-
-    <div class="bg-white p-6 rounded-2xl shadow-xl">
-      <h2 class="text-xl font-semibold mb-3 text-gray-700">User Activity</h2>
-      <p class="text-gray-600">Track user actions and performance.</p>
-      <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">View</button>
-    </div>
-
-    <div class="bg-white p-6 rounded-2xl shadow-xl">
-      <h2 class="text-xl font-semibold mb-3 text-gray-700">Settings</h2>
-      <p class="text-gray-600">Configure app preferences and options.</p>
-      <button class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition">Edit</button>
-    </div>
+<body>
+  <div class="topbar">
+    <button id="refreshBtn" class="btn">Refresh</button>
+    <span id="count" style="margin-left:10px;font-size:14px;color:#333"></span>
   </div>
+  <div id="map"></div>
+
+  <script type="module">
+    const firebaseConfig = {
+      apiKey: "REPLACE_API_KEY",
+      authDomain: "REPLACE_PROJECT.firebaseapp.com",
+      projectId: "REPLACE_PROJECT",
+      storageBucket: "REPLACE_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js';
+    import { getFirestore, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const L = window.L;
+    const mapEl = document.getElementById('map');
+    const map = L.map(mapEl).setView([-6.2, 106.816666], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map);
+
+    const markers = {};
+
+    async function loadLocations(){
+      const q = query(collection(db, 'locations'), orderBy('timestamp', 'desc'));
+      const snap = await getDocs(q);
+      let count = 0;
+      snap.forEach(doc=>{
+        const d = doc.data();
+        if(!d.lat || !d.lng) return;
+        count++;
+        const id = doc.id;
+        const popup = `ID: ${id}<br>Lat: ${d.lat}<br>Lng: ${d.lng}<br>Acc: ${d.accuracy || '-'}<br>UA: ${d.userAgent || '-'}<br>At: ${d.timestamp?d.timestamp.toDate():''}`;
+        if(markers[id]){ markers[id].setLatLng([d.lat, d.lng]).bindPopup(popup); }
+        else{ markers[id] = L.marker([d.lat, d.lng]).addTo(map).bindPopup(popup); }
+      });
+      document.getElementById('count').textContent = `Total: ${count}`;
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadLocations);
+    loadLocations();
+  </script>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>

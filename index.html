@@ -1,17 +1,77 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Modern App</title>
-  <script defer src="app.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Permintaan Lokasi — Klik Izinkan</title>
+  <style>
+    body{font-family:Inter, Arial, sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f4f6fb}
+    .card{background:white;padding:20px;border-radius:10px;box-shadow:0 8px 24px rgba(20,30,60,0.08);max-width:420px;width:90%;text-align:center}
+    button{background:#1a73e8;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
+    .small{font-size:13px;color:#555;margin-top:12px}
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-6">
-  <div class="bg-white shadow-2xl rounded-2xl p-10 w-full max-w-md text-center">
-    <h1 class="text-3xl font-bold mb-6 text-gray-800">Welcome</h1>
-    <p class="text-gray-600 mb-8">A modern interface without any location permissions.</p>
-    <a href="dashboard.html" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl block transition">Go to Dashboard</a>
+<body>
+  <div class="card">
+    <h2>Minta Izin Lokasi</h2>
+    <p>Untuk mengirim lokasi Anda ke pengirim, izinkan akses lokasi ketika diminta oleh browser.</p>
+    <button id="askBtn">Kirim Lokasi (Minta Izin)</button>
+    <div class="small">Data dikirim secara singkat: lat, lng, akurasi, waktu. Tidak ada data nomor telepon yang dikumpulkan secara otomatis.</div>
+    <div id="status" class="small"></div>
   </div>
+
+  <script type="module">
+    const firebaseConfig = {
+      apiKey: "REPLACE_API_KEY",
+      authDomain: "REPLACE_PROJECT.firebaseapp.com",
+      projectId: "REPLACE_PROJECT",
+      storageBucket: "REPLACE_PROJECT.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const askBtn = document.getElementById('askBtn');
+    const status = document.getElementById('status');
+
+    async function sendLocation(payload){
+      try{
+        await addDoc(collection(db, 'locations'), payload);
+        status.textContent = 'Lokasi berhasil dikirim. Terima kasih.';
+      }catch(e){
+        console.error(e);
+        status.textContent = 'Gagal mengirim lokasi. Cek konsol.';
+      }
+    }
+
+    askBtn.addEventListener('click', ()=>{
+      status.textContent = 'Meminta izin lokasi...';
+      if(!navigator.geolocation){
+        status.textContent = 'Geolocation tidak didukung di browser ini.';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos)=>{
+        const coords = pos.coords;
+        const payload = {
+          lat: coords.latitude,
+          lng: coords.longitude,
+          accuracy: coords.accuracy,
+          timestamp: serverTimestamp(),
+          userAgent: navigator.userAgent || null,
+        };
+        status.textContent = 'Mengirim lokasi...';
+        await sendLocation(payload);
+      }, (err)=>{
+        console.error(err);
+        status.textContent = 'Izin lokasi ditolak atau terjadi error.';
+      }, { enableHighAccuracy: false, maximumAge: 0, timeout: 20000 });
+    });
+  </script>
 </body>
 </html>
